@@ -114,6 +114,7 @@ def read_fastq(fastq_file: Path) -> Iterator[str]:
             except StopIteration:
                 break
 
+
 def cut_kmer(read: str, kmer_size: int) -> Iterator[str]:
     """Cut read into kmers of size kmer_size.
 
@@ -125,6 +126,7 @@ def cut_kmer(read: str, kmer_size: int) -> Iterator[str]:
         str: Kmers of size kmer_size.
     """
     return (read[i:i + kmer_size] for i in range(len(read) - kmer_size + 1))
+
 
 def build_kmer_dict(fastq_file: Path, kmer_size: int) -> Dict[str, int]:
     """Build a dictionary object of all kmer occurrences in the fastq file.
@@ -142,6 +144,7 @@ def build_kmer_dict(fastq_file: Path, kmer_size: int) -> Dict[str, int]:
             kmer_dict[kmer] = kmer_dict.get(kmer, 0) + 1
     return kmer_dict
 
+
 def build_graph(kmer_dict: Dict[str, int]) -> DiGraph:
     """Build the De Bruijn graph.
 
@@ -156,6 +159,7 @@ def build_graph(kmer_dict: Dict[str, int]) -> DiGraph:
         prefix, suffix = kmer[:-1], kmer[1:]
         graph.add_edge(prefix, suffix, weight=weight)
     return graph
+
 
 def remove_paths(
     graph: DiGraph,
@@ -254,7 +258,13 @@ def get_starting_nodes(graph: DiGraph) -> List[str]:
     :param graph: (nx.DiGraph) A directed graph object
     :return: (list) A list of all nodes without predecessors
     """
-    pass
+    starting_nodes = []
+    
+    for node in graph.nodes():
+        if not list(graph.predecessors(node)):
+            starting_nodes.append(node)
+    
+    return starting_nodes
 
 
 def get_sink_nodes(graph: DiGraph) -> List[str]:
@@ -263,7 +273,13 @@ def get_sink_nodes(graph: DiGraph) -> List[str]:
     :param graph: (nx.DiGraph) A directed graph object
     :return: (list) A list of all nodes without successors
     """
-    pass
+    ending_nodes = []
+    
+    for node in graph.nodes():
+        if not list(graph.successors(node)):
+            ending_nodes.append(node)
+    
+    return ending_nodes
 
 
 def get_contigs(
@@ -276,7 +292,21 @@ def get_contigs(
     :param ending_nodes: (list) A list of nodes without successors
     :return: (list) List of [contiguous sequence and their length]
     """
-    pass
+    contigs = []
+
+    for start in starting_nodes:
+        for end in ending_nodes:
+           if has_path(graph, start, end):
+                # Find all simple paths between the start node and the end node
+                for path in all_simple_paths(graph, start, end):
+                    contig = path[0]
+                    
+                    for node in path[1:]:
+                        contig += node[-1]
+
+                    contigs.append((contig, len(contig)))
+                    
+    return contigs
 
 
 def save_contigs(contigs_list: List[str], output_file: Path) -> None:
@@ -285,7 +315,13 @@ def save_contigs(contigs_list: List[str], output_file: Path) -> None:
     :param contig_list: (list) List of [contiguous sequence and their length]
     :param output_file: (Path) Path to the output file
     """
-    pass
+    with open(output_file, 'w') as f:
+        for index, (contig, length) in enumerate(contigs_list):
+            header = f">contig_{index} len={length}\n"
+            f.write(header)
+            
+            formatted_sequence = textwrap.fill(contig, width=80)
+            f.write(formatted_sequence + "\n")
 
 
 def draw_graph(graph: DiGraph, graphimg_file: Path) -> None:  # pragma: no cover
