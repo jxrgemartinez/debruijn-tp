@@ -26,7 +26,7 @@ from networkx import (
     draw,
     spring_layout,
 )
-import matplotlib
+import matplotlib.pyplot as plt
 from operator import itemgetter
 import random
 
@@ -34,7 +34,6 @@ random.seed(9001)
 from random import randint
 import statistics
 import textwrap
-import matplotlib.pyplot as plt
 from typing import Iterator, Dict, List
 
 matplotlib.use("Agg")
@@ -102,7 +101,20 @@ def read_fastq(fastq_file: Path) -> Iterator[str]:
     :param fastq_file: (Path) Path to the fastq file.
     :return: A generator object that iterate the read sequences.
     """
-    pass
+    with fastq_file.open('r') as file:
+        while True:
+            # Read 4 lines at a time
+            _ = next(file, None)  # Identifier line
+            sequence = next(file, None)  # Sequence line
+            _ = next(file, None)  # '+' line
+            _ = next(file, None)  # Quality line
+            
+            # Check if we finished the file
+            if sequence is None:
+                break
+            
+            # Yield the sequence
+            yield sequence.strip()
 
 
 def cut_kmer(read: str, kmer_size: int) -> Iterator[str]:
@@ -111,7 +123,8 @@ def cut_kmer(read: str, kmer_size: int) -> Iterator[str]:
     :param read: (str) Sequence of a read.
     :return: A generator object that provides the kmers (str) of size kmer_size.
     """
-    pass
+    for i in range(len(sequence) - kmer_size + 1):
+        yield sequence[i:i + kmer_size]
 
 
 def build_kmer_dict(fastq_file: Path, kmer_size: int) -> Dict[str, int]:
@@ -120,7 +133,13 @@ def build_kmer_dict(fastq_file: Path, kmer_size: int) -> Dict[str, int]:
     :param fastq_file: (str) Path to the fastq file.
     :return: A dictionnary object that identify all kmer occurrences.
     """
-    pass
+    kmer_dict = defaultdict(int)
+    
+    for sequence in read_fastq(fastq_file):
+        for kmer in cut_kmer(sequence, kmer_size):
+            kmer_dict[kmer] += 1
+    
+    return dict(kmer_dict)
 
 
 def build_graph(kmer_dict: Dict[str, int]) -> DiGraph:
