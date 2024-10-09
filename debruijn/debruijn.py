@@ -36,7 +36,6 @@ import statistics
 import textwrap
 from typing import Iterator, Dict, List
 
-matplotlib.use("Agg")
 
 __author__ = "Your Name"
 __copyright__ = "Universite Paris Diderot"
@@ -98,58 +97,65 @@ def get_arguments():  # pragma: no cover
 def read_fastq(fastq_file: Path) -> Iterator[str]:
     """Extract reads from fastq files.
 
-    :param fastq_file: (Path) Path to the fastq file.
-    :return: A generator object that iterate the read sequences.
-    """
-    with fastq_file.open('r') as file:
-        while True:
-            # Read 4 lines at a time
-            _ = next(file, None)  # Identifier line
-            sequence = next(file, None)  # Sequence line
-            _ = next(file, None)  # '+' line
-            _ = next(file, None)  # Quality line
-            
-            # Check if we finished the file
-            if sequence is None:
-                break
-            
-            # Yield the sequence
-            yield sequence.strip()
+    Args:
+        fastq_file (Path): Path to the fastq file.
 
+    Yields:
+        str: Read sequences.
+    """
+    with fastq_file.open('r', encoding='utf-8') as file:
+        while True:
+            try:
+                next(file)  # Identifier line
+                sequence = next(file).strip()  # Sequence line
+                next(file)  # '+' line
+                next(file)  # Quality line
+                yield sequence
+            except StopIteration:
+                break
 
 def cut_kmer(read: str, kmer_size: int) -> Iterator[str]:
     """Cut read into kmers of size kmer_size.
 
-    :param read: (str) Sequence of a read.
-    :return: A generator object that provides the kmers (str) of size kmer_size.
-    """
-    for i in range(len(sequence) - kmer_size + 1):
-        yield sequence[i:i + kmer_size]
+    Args:
+        read (str): Sequence of a read.
+        kmer_size (int): Size of the kmers.
 
+    Yields:
+        str: Kmers of size kmer_size.
+    """
+    return (read[i:i + kmer_size] for i in range(len(read) - kmer_size + 1))
 
 def build_kmer_dict(fastq_file: Path, kmer_size: int) -> Dict[str, int]:
-    """Build a dictionnary object of all kmer occurrences in the fastq file
+    """Build a dictionary object of all kmer occurrences in the fastq file.
 
-    :param fastq_file: (str) Path to the fastq file.
-    :return: A dictionnary object that identify all kmer occurrences.
+    Args:
+        fastq_file (Path): Path to the fastq file.
+        kmer_size (int): Size of the kmers.
+
+    Returns:
+        Dict[str, int]: A dictionary object that identifies all kmer occurrences.
     """
     kmer_dict = {}
-
     for sequence in read_fastq(fastq_file):
         for kmer in cut_kmer(sequence, kmer_size):
             kmer_dict[kmer] = kmer_dict.get(kmer, 0) + 1
-
     return kmer_dict
 
-
 def build_graph(kmer_dict: Dict[str, int]) -> DiGraph:
-    """Build the debruijn graph
+    """Build the De Bruijn graph.
 
-    :param kmer_dict: A dictionnary object that identify all kmer occurrences.
-    :return: A directed graph (nx) of all kmer substring and weight (occurrence).
+    Args:
+        kmer_dict (Dict[str, int]): A dictionary object that identifies all kmer occurrences.
+
+    Returns:
+        DiGraph: A directed graph (nx) of all kmer substrings and weights (occurrences).
     """
-    pass
-
+    graph = DiGraph()
+    for kmer, weight in kmer_dict.items():
+        prefix, suffix = kmer[:-1], kmer[1:]
+        graph.add_edge(prefix, suffix, weight=weight)
+    return graph
 
 def remove_paths(
     graph: DiGraph,
